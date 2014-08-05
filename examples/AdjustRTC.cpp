@@ -1,6 +1,6 @@
 /*
  AdjustRTC is a sketch that lets you set the AB08XX Real Time
- Clock's time. Copyright (C) 2012 Nigel Bajema
+ Clock's time. Copyright (C) 2014 Nigel Bajema
 
  This program is free software; you can redistribute it and/or
  modify it under the terms of the GNU General Public License
@@ -32,6 +32,8 @@ int get(int argc, char** argv);
 int usage(int argc, char** argv);
 int help(int argc, char** argv);
 int watch(int argc, char** argv);
+int stop(int argc, char** argv);
+int start(int argc, char** argv);
 
 void  displayTime ();
 
@@ -49,6 +51,8 @@ static cmnd cli_vector[] = {
 		{"get",   &get,   "Retrieve and display the time from the clock."},
 		{"watch", &watch, "Watch the time on the clock."},
 		{"usage", &usage, "Display the usage of the set command."},
+		{"stop",  &stop,  "Stop the oscillator."},
+		{"start", &start, "Start the oscillator."},
 		{"help", &help,   "Display this help."},
 		{NULL,   NULL,    NULL},
 };
@@ -223,6 +227,22 @@ int watch(int argc, char** argv)
 		delay(1000);
 	}
 	return 0;
+}
+
+int stop(int argc, char** argv)
+{
+	control1_t control;
+	clock.readControl1(control);
+	control.STOP = true;
+	clock.writeControl1(control);
+}
+
+int start(int argc, char** argv)
+{
+	control1_t control;
+	clock.readControl1(control);
+	control.STOP = false;
+	clock.writeControl1(control);
 }
 
 int help(int argc, char** argv){
