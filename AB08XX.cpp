@@ -18,6 +18,8 @@
 */
 
 #include "AB08XX.h"
+#include "Arduino.h"
+#include "HardwareSerial.h"
 
 
 uint8_t bcd2bin(uint8_t value)
@@ -33,7 +35,6 @@ uint8_t bin2bcd(uint8_t value)
 
 AB08XX::AB08XX(){
 	error_code = AB08XX_NO_ERROR;
-
 }
 
 AB08XX::~AB08XX(){}
@@ -41,7 +42,7 @@ AB08XX::~AB08XX(){}
 
 time_t AB08XX::get()
 {
-	tmElements_t tm;
+	ab08xx_tmElements_t tm;
 	read(tm);
 	return makeTime(tm);
 }
@@ -56,22 +57,11 @@ uint64_t AB08XX::getError()
 	return error_code;
 }
 
-void AB08XX::read(tmElements_t &tm)
+void AB08XX::read(ab08xx_tmElements_t &tm)
 {
-	AB08XX_memorymap buf;
+	ab08xx_time_t buf;
 
-	Wire.beginTransmission(AB08XX_ADDRESS);
-
-	Wire.write(OFFSETOF(AB08XX_memorymap, hundreths));
-	Wire.endTransmission();
-
-	size_t size = OFFSETOF(AB08XX_memorymap, hundredths_alarm) - OFFSETOF(AB08XX_memorymap, hundreths);
-	Wire.requestFrom(AB08XX_ADDRESS, size);
-	size_t sz = Wire.readBytes((uint8_t *)&buf, size);
-	if(sz != size)
-	{
-		setError(AB08XX_READ_ERROR);
-	}
+	_read(OFFSETOF(AB08XX_memorymap, time), (uint8_t*)&buf, sizeof(ab08xx_time_t));
 
 	tm.Year = CalendarYrToTm(bcd2bin(buf.years) + (buf.weekdays.GP * 100));
 	tm.Month = bcd2bin(buf.month.data);
@@ -79,8 +69,8 @@ void AB08XX::read(tmElements_t &tm)
 	tm.Hour = bcd2bin(buf.hours_24.data);
 	tm.Minute = bcd2bin(buf.minutes.data);
 	tm.Second = bcd2bin(buf.seconds.data);
+	tm.Hundreths = bcd2bin(buf.hundreths);
 	tm.Wday = buf.weekdays.data + 1;
-
 }
 
 void AB08XX::read(AB08XX_memorymap &mem)
@@ -88,11 +78,10 @@ void AB08XX::read(AB08XX_memorymap &mem)
 	_read(0, (uint8_t*)&mem, sizeof(AB08XX_memorymap));
 }
 
-void AB08XX::write(tmElements_t &tm)
+void AB08XX::write(ab08xx_tmElements_t &tm)
 {
 
-	size_t size = OFFSETOF(AB08XX_memorymap, hundredths_alarm) - OFFSETOF(AB08XX_memorymap, hundreths);
-	AB08XX_memorymap buf;
+	ab08xx_time_t buf;
 
 	uint16_t year = tmYearToCalendar(tm.Year);
 	buf.years = bin2bcd(year % 100);
@@ -106,24 +95,31 @@ void AB08XX::write(tmElements_t &tm)
 	buf.weekdays.data = tm.Wday - 1;
 	buf.hundreths = 0;
 
-	Wire.beginTransmission(AB08XX_ADDRESS);
-	Wire.write(OFFSETOF(AB08XX_memorymap, hundreths));
-	size_t count = Wire.write((uint8_t*)&buf, size);
-	Wire.endTransmission();
-	if(count != size)
-	{
-		setError(AB08XX_WRITE_ERROR);
-	}
+	_write(OFFSETOF(AB08XX_memorymap, time), (uint8_t*)&buf, sizeof(ab08xx_time_t));
 }
 
-void AB08XX::readAlarm(tmElements_t &tm)
+void AB08XX::readAlarm(ab08xx_tmElements_t &alarm, ab08xx_alarm_repeat_mode_t &mode)
 {
+	ab08xx_alarm_t  buf;
+	timer_control_t	timer_control;
+
+	_read(OFFSETOF(AB08XX_memorymap, alarm), (uint8_t*)&buf, sizeof(ab08xx_alarm_t));
+	_read(OFFSETOF(AB08XX_memorymap, timer_control), (uint8_t*)&timer_control, sizeof(timer_control_t));
+
+	alarm.Year = 0;
+	alarm.Month = bcd2bin(buf.month_alarm.data);
+	alarm.Day = bcd2bin(buf.date_alram.data);
+	alarm.Hour = bcd2bin(buf.hour_alarm.data);
+	alarm.Minute = bcd2bin(buf.minute_alarm.data);
+	alarm.Second = bcd2bin(buf.seconds_alarm.data);
+	alarm.Hundreths = bcd2bin(buf.hundredths_alarm);
+	alarm.Wday = buf.weekday_alarm.data + 1;
 
 }
 
-void AB08XX::writeAlarm(tmElements_t &tm)
+void AB08XX::writeAlarm(ab08xx_tmElements_t &alarm, ab08xx_alarm_repeat_mode_t mode)
 {
-
+	_write(OFFSETOF(AB08XX_memorymap, alarm), (uint8_t*)&alarm, sizeof(ab08xx_alarm_t));
 }
 
 void AB08XX::readStatus(status_t &data)
@@ -174,24 +170,29 @@ AB08XX_I2C::AB08XX_I2C() : AB08XX()
 
 size_t AB08XX_I2C::_read(uint8_t offset, uint8_t* buf, uint16_t size)
 {
+
 	Wire.beginTransmission(AB08XX_ADDRESS);
 	Wire.write(offset);
 	Wire.endTransmission();
 
 	size_t total_read = 0;
 
-	uint16_t position = 0;
-	for(; position < size; position += BUFFER_LENGTH)
+	for(uint8_t pos = 0, chunk_size; pos < size; pos += chunk_size)
 	{
-		Wire.requestFrom(AB08XX_ADDRESS, BUFFER_LENGTH);
-		total_read += Wire.readBytes(buf + position, BUFFER_LENGTH);
+		chunk_size = size - pos;
+		if(chunk_size > (BUFFER_LENGTH - 1))
+		{
+			chunk_size = (BUFFER_LENGTH - 1);
 
+		}
+		if((offset + pos) < 0x40 && (pos + offset + chunk_size) > 0x40)
+		{
+			chunk_size = 0x40 - (offset + pos);
+		}
+		Wire.requestFrom((uint8_t)AB08XX_ADDRESS, chunk_size);
+		total_read = Wire.readBytes(buf + pos, chunk_size);
 	}
-	if((size - position) > 0)
-	{
-		Wire.requestFrom(AB08XX_ADDRESS, size - position);
-		total_read += Wire.readBytes(buf + position, BUFFER_LENGTH);
-	}
+
 	if(total_read != size)
 	{
 		setError(AB08XX_READ_ERROR);
@@ -201,15 +202,29 @@ size_t AB08XX_I2C::_read(uint8_t offset, uint8_t* buf, uint16_t size)
 
 size_t AB08XX_I2C::_write(uint8_t offset, uint8_t* buf, uint16_t size)
 {
-	Wire.beginTransmission(AB08XX_ADDRESS);
-	Wire.write(offset);
-	size_t sz = Wire.write((uint8_t*)buf, size);
-	Wire.endTransmission();
-	if(sz != size)
+	size_t total_written = 0;
+	for(uint8_t pos = 0, chunk_size; pos < size; pos += chunk_size)
+	{
+		chunk_size = size - pos;
+
+		//For some reason if I use BUFFER_LENGTH instead of (BUFFER_LENGTH - 1) the
+		//last byte is not written to the device.
+		if(chunk_size > (BUFFER_LENGTH - 1))
+		{
+			chunk_size = (BUFFER_LENGTH - 1);
+		}
+		Wire.beginTransmission(AB08XX_ADDRESS);
+		Wire.write(offset + pos);
+		total_written += Wire.write(buf + pos, chunk_size);
+		Wire.endTransmission();
+
+	}
+
+	if(total_written != size)
 	{
 		setError(AB08XX_WRITE_ERROR);
 	}
-	return sz;
+	return total_written;
 }
 
 

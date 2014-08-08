@@ -24,6 +24,7 @@
 #include "Time.h"
 #include "Wire.h"
 
+
 #ifndef OFFSETOF
 #define OFFSETOF(type, field)    ((unsigned long) &(((type *) 0)->field))
 #endif
@@ -66,10 +67,33 @@ struct three_five_t
 	uint8_t GP:5;
 };
 
+struct ab08xx_time_t
+{
+	uint8_t hundreths;
+	seven_one_t seconds;
+	seven_one_t minutes;
+	six_two_t hours_24;
+	six_two_t date;
+	five_three_t month;
+	uint8_t years;
+	three_five_t weekdays;
+};
+
+struct ab08xx_alarm_t
+{
+	uint8_t hundredths_alarm;
+	seven_one_t seconds_alarm;
+	seven_one_t minute_alarm;
+	six_two_t hour_alarm;
+	six_two_t date_alram;
+	five_three_t month_alarm;
+	three_five_t weekday_alarm;
+};
+
 struct status_t {
 	bool EX1: 1;
 	bool EX2: 1;
-	bool AML: 1;
+	bool ALM: 1;
 	bool TIM: 1;
 	bool BL : 1;
 	bool WDT: 1;
@@ -113,38 +137,87 @@ struct square_wave_t {
 	bool SQWE: 1;
 };
 
+struct cal_xt_t
+{
+	uint8_t OFFSETX: 7;
+	uint8_t CMDX: 1;
+};
+
+struct cal_rc_hi_t
+{
+	uint8_t OFFSETR: 6;
+	uint8_t CMDR: 2;
+};
+
+struct cal_rc_low_t
+{
+	uint8_t OFFSETR;
+};
+
+struct sleep_control_t
+{
+	uint8_t SLTO : 3;
+	uint8_t SLST : 1;
+	uint8_t EX1P : 1;
+	uint8_t EX2P : 1;
+	uint8_t SLRES: 1;
+	uint8_t SLP  : 1;
+};
+
+struct timer_control_t
+{
+	uint8_t TFS : 2;
+	uint8_t RPT : 3;
+	uint8_t TRPT: 1;
+	uint8_t TM  : 1;
+	uint8_t TE  : 1;
+};
+
+enum watchdog_timer_freq_select_t
+{
+	_16hz = 0,
+	_4hz = 1,
+	_1hz = 2,
+	quater_hz = 3,
+};
+
+struct watchdog_timer_t
+{
+	watchdog_timer_freq_select_t WRB: 2; //Watchdog clock frequency
+	uint8_t BMB: 5;
+	uint8_t WDS: 1; //Watchdog Steering 0, Watchdog Timer will generate WIRQ when it times out.
+					//When 1, the Watchdog Timer will generate a reset when it times out.
+};
+
+
+//struct idenstification_t
+//{
+//	uint8_t part_msb;
+//	uint8_t part_lsb;
+//	uint8_t revision_minor: 3;
+//	uint8_t revision_major: 5;
+//	uint8_t mfg_week:4;
+//	uint8_t mfg_year:4;
+//};
 
 struct AB08XX_memorymap
 {
-	uint8_t hundreths;
-	seven_one_t seconds;
-	seven_one_t minutes;
-	six_two_t hours_24;
-	six_two_t date;
-	five_three_t month;
-	uint8_t years;
-	three_five_t weekdays;
-	uint8_t hundredths_alarm;
-	uint8_t seconds_alarm;
-	uint8_t minute_alarm;
-	uint8_t hour_alarm;
-	uint8_t date_alram;
-	uint8_t month_alarm;
-	uint8_t weekday_alarm;
+	ab08xx_time_t time;
+	ab08xx_alarm_t alarm;
 	status_t status;
 	control1_t control1;
 	control2_t control2;
 	inturrupt_mask_t int_mask;
 	square_wave_t sqw;
 
-	uint8_t cal_xt;
-	uint8_t cal_rc_hi;
-	uint8_t cal_rc_low;
-	uint8_t sleep_control;
-	uint8_t timer_control;
+	cal_xt_t     cal_xt;
+	cal_rc_hi_t  cal_rc_hi;
+	cal_rc_low_t cal_rc_low;
+	sleep_control_t sleep_control;
+	timer_control_t timer_control;
 	uint8_t timer;
 	uint8_t timer_initial;
-	uint8_t wdt;
+	watchdog_timer_t wdt;
 	uint8_t osc_control;
 	uint8_t osc_status;
 	uint8_t RESERVED;
@@ -152,11 +225,6 @@ struct AB08XX_memorymap
 	uint8_t trickle;
 	uint8_t bref_control;
 	uint8_t RESERVED2[6];
-//	byte RESERVED;
-//	byte RESERVED;
-//	byte RESERVED;
-//	byte RESERVED;
-//	byte RESERVED;
 	uint8_t id0;
 	uint8_t id1;
 	uint8_t id2;
@@ -169,6 +237,25 @@ struct AB08XX_memorymap
 	uint8_t RESERVED3[14];
 	uint8_t extention_address;
 	uint8_t ram[64];
+};
+
+struct ab08xx_tmElements_t: tmElements_t
+{
+	uint8_t Hundreths;
+};
+
+//From the Alarm repeat function table (20)
+enum ab08xx_alarm_repeat_mode_t
+{
+	once_per_hundreth,
+	once_per_tenth,
+	once_per_second,
+	once_per_minute,
+	once_per_hour,
+	once_per_day,
+	once_per_week,
+	once_per_year,
+	repeat_dissabled,
 };
 
 uint8_t bcd2bin(uint8_t value);
@@ -195,15 +282,15 @@ public:
 	virtual ~AB08XX();
 
 	time_t get();
-	void read(tmElements_t &tm);
-	void write(tmElements_t &tm);
+	void read(ab08xx_tmElements_t &tm);
+	void write(ab08xx_tmElements_t &tm);
 
 	void read(AB08XX_memorymap &mem);
 
 	uint64_t getError();
 
-	void readAlarm(tmElements_t &tm);
-	void writeAlarm(tmElements_t &tm);
+	void readAlarm(ab08xx_tmElements_t &alarm, ab08xx_alarm_repeat_mode_t &mode);
+	void writeAlarm(ab08xx_tmElements_t &alarm, ab08xx_alarm_repeat_mode_t mode);
 
 	void readStatus(status_t &data);
 	void writeStatus(status_t &data);
