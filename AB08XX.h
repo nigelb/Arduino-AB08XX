@@ -55,10 +55,19 @@ struct five_three_t
 	uint8_t GP:3;
 };
 
-struct four_three_t
+//struct four_four_t
+//{
+//	uint8_t data:4;
+//	uint8_t GP:4;
+//};
+union four_four_t
 {
-	uint8_t data:4;
-	uint8_t GP:3;
+	struct
+	{
+		uint8_t LSB:4;
+		uint8_t MSB:4;
+	} fields;
+	uint8_t value;
 };
 
 struct three_five_t
@@ -247,15 +256,17 @@ struct ab08xx_tmElements_t: tmElements_t
 //From the Alarm repeat function table (20)
 enum ab08xx_alarm_repeat_mode_t
 {
-	once_per_hundreth,
-	once_per_tenth,
-	once_per_second,
-	once_per_minute,
-	once_per_hour,
-	once_per_day,
-	once_per_week,
+	alarm_dissabled = 0,
 	once_per_year,
-	repeat_dissabled,
+	once_per_month,
+	once_per_week,
+	once_per_day,
+	once_per_hour,
+	once_per_minute,
+	once_per_second,
+	once_per_tenth,
+	once_per_hundreth,
+	invalid_mode
 };
 
 uint8_t bcd2bin(uint8_t value);

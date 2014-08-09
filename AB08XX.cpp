@@ -63,7 +63,7 @@ void AB08XX::read(ab08xx_tmElements_t &tm)
 
 	_read(OFFSETOF(AB08XX_memorymap, time), (uint8_t*)&buf, sizeof(ab08xx_time_t));
 
-	tm.Year = CalendarYrToTm(bcd2bin(buf.years) + (buf.weekdays.GP * 100));
+	tm.Year = CalendarYrToTm(bcd2bin(buf.years) /*+ (buf.weekdays.GP * 100)*/) + 2000;
 	tm.Month = bcd2bin(buf.month.data);
 	tm.Day = bcd2bin(buf.date.data);
 	tm.Hour = bcd2bin(buf.hours_24.data);
@@ -85,7 +85,7 @@ void AB08XX::write(ab08xx_tmElements_t &tm)
 
 	uint16_t year = tmYearToCalendar(tm.Year);
 	buf.years = bin2bcd(year % 100);
-	buf.weekdays.GP = year / 100;
+//	buf.weekdays.GP = year / 100;
 	buf.month.data = bin2bcd(tm.Month);
 	buf.date.data = bin2bcd(tm.Day);
 	buf.hours_24.data = bin2bcd(tm.Hour);
@@ -102,6 +102,7 @@ void AB08XX::readAlarm(ab08xx_tmElements_t &alarm, ab08xx_alarm_repeat_mode_t &m
 {
 	ab08xx_alarm_t  buf;
 	timer_control_t	timer_control;
+	four_four_t HA;
 
 	_read(OFFSETOF(AB08XX_memorymap, alarm), (uint8_t*)&buf, sizeof(ab08xx_alarm_t));
 	_read(OFFSETOF(AB08XX_memorymap, timer_control), (uint8_t*)&timer_control, sizeof(timer_control_t));
@@ -115,11 +116,107 @@ void AB08XX::readAlarm(ab08xx_tmElements_t &alarm, ab08xx_alarm_repeat_mode_t &m
 	alarm.Hundreths = bcd2bin(buf.hundredths_alarm);
 	alarm.Wday = buf.weekday_alarm.data + 1;
 
+	switch(timer_control.RPT)
+	{
+	default:
+	case 0:
+		mode = alarm_dissabled;
+		break;
+	case 1:
+		mode = once_per_year;
+		break;
+	case 2:
+		mode = once_per_month;
+		break;
+	case 3:
+		mode = once_per_week;
+		break;
+	case 4:
+		mode = once_per_day;
+		break;
+	case 5:
+		mode = once_per_hour;
+		break;
+	case 6:
+		mode = once_per_minute;
+		break;
+	case 7:
+		HA.value = buf.hundredths_alarm;
+		if(HA.fields.MSB == 0xF && HA.fields.LSB <= 10)
+		{
+			mode = once_per_tenth;
+			alarm.Hundreths = HA.fields.LSB;
+		}
+		else if(buf.hundredths_alarm == 0xFF)
+		{
+			mode = once_per_hundreth;
+			alarm.Hundreths = 0;
+		}else
+		{
+			mode = once_per_second;
+		}
+		break;
+	}
+
 }
 
 void AB08XX::writeAlarm(ab08xx_tmElements_t &alarm, ab08xx_alarm_repeat_mode_t mode)
 {
-	_write(OFFSETOF(AB08XX_memorymap, alarm), (uint8_t*)&alarm, sizeof(ab08xx_alarm_t));
+	ab08xx_alarm_t ab08xx_alarm;
+	timer_control_t timer_control;
+	four_four_t HA;
+
+	_read(OFFSETOF(AB08XX_memorymap, timer_control), (uint8_t*)&timer_control, sizeof(timer_control_t));
+
+	ab08xx_alarm.month_alarm.data = bin2bcd(alarm.Month);
+	ab08xx_alarm.date_alram.data = bin2bcd(alarm.Day);
+	ab08xx_alarm.hour_alarm.data = bin2bcd(alarm.Hour);
+	ab08xx_alarm.minute_alarm.data = bin2bcd(alarm.Minute);
+	ab08xx_alarm.seconds_alarm.data = bin2bcd(alarm.Second);
+	ab08xx_alarm.hundredths_alarm = bin2bcd(alarm.Hundreths);
+	ab08xx_alarm.weekday_alarm.data = bin2bcd(alarm.Wday - 1);
+
+	switch(mode)
+	{
+
+	case once_per_year:
+		timer_control.RPT = 1;
+		break;
+	case once_per_month:
+		timer_control.RPT = 2;
+		break;
+	case once_per_week:
+		timer_control.RPT = 3;
+		break;
+	case once_per_day:
+		timer_control.RPT = 4;
+		break;
+	case once_per_hour:
+		timer_control.RPT = 5;
+		break;
+	case once_per_minute:
+		timer_control.RPT = 6;
+		break;
+	case once_per_second:
+		timer_control.RPT = 7;
+		break;
+	case once_per_tenth:
+		timer_control.RPT = 7;
+		HA.value = ab08xx_alarm.hundredths_alarm;
+		HA.fields.MSB = 0xF;
+		ab08xx_alarm.hundredths_alarm = HA.value;
+		break;
+	case once_per_hundreth:
+		timer_control.RPT = 7;
+		ab08xx_alarm.hundredths_alarm = 0xFF;
+		break;
+	default:
+		timer_control.RPT = 0;
+		break;
+	}
+
+	_write(OFFSETOF(AB08XX_memorymap, timer_control), (uint8_t*)&timer_control, sizeof(timer_control_t));
+	_write(OFFSETOF(AB08XX_memorymap, alarm), (uint8_t*)&ab08xx_alarm, sizeof(ab08xx_alarm_t));
 }
 
 void AB08XX::readStatus(status_t &data)
