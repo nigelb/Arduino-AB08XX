@@ -324,6 +324,21 @@ size_t AB08XX_I2C::_write(uint8_t offset, uint8_t* buf, uint16_t size)
 	return total_written;
 }
 
+AB08XX_SPI::AB08XX_SPI(uint16_t cs_pin) : AB08XX()
+{
+	this->cs_pin = cs_pin;
+}
+
+size_t AB08XX_SPI::_read(uint8_t offset, uint8_t* buf, uint16_t size)
+{
+	return 0;
+}
+
+size_t AB08XX_SPI::_write(uint8_t offset, uint8_t* buf, uint16_t size)
+{
+	return 0;
+}
+
 
 
 

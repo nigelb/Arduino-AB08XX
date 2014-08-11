@@ -24,6 +24,27 @@
 #include "Time.h"
 #include "Wire.h"
 
+/*
+                 AB080X                                      AB081X
+
+             Xi  XO  VSS VCC                              Xi  XO  VSS VCC
+          +---|---|---|---|-+                          +---|---|---|---|-+
+    NC   _|1 _____________  |_ nIRQ      (1)     NC   _|1 _____________  |_ nCE
+(1) WDI  _| /             | |_ FOUT/nIRQ     (3) WDI  _| /             | |_ FOUT/nIRQ
+    NC   _| |     VSS     | |_ EXTI      (1)     NC   _| |    VSS      | |_ EXTI      (3)
+    nIRQ2_| |     PAD     | |_ VSS               nIRQ2_| |    PAD      | |_ VSS
+          | |_____________| |                          | |_____________| |
+          |                 |                          |                 |
+          +---|---|---|---|-+                          +---|---|---|---|-+
+            VBAT SDA SCL CLKOUT/nIRQ3                    VBAT SDA SCL CLKOUT/nIRQ3
+             (2)          (1)                             (4)          (3)
+
+
+                          (1) - Available in AB0804 and AB0805 only, else NC
+                          (2) - Available in AB0803 and AB0805 only, else VSS
+                          (3) - Available in AB0814 and AB0815 only, else NC
+                          (4) - Available in AB0813 and AB0815 only, else VSS
+*/
 
 #ifndef OFFSETOF
 #define OFFSETOF(type, field)    ((unsigned long) &(((type *) 0)->field))
@@ -194,8 +215,9 @@ struct watchdog_timer_t
 {
 	watchdog_timer_freq_select_t WRB: 2; //Watchdog clock frequency
 	uint8_t BMB: 5;
-	uint8_t WDS: 1; //Watchdog Steering 0, Watchdog Timer will generate WIRQ when it times out.
-					//When 1, the Watchdog Timer will generate a reset when it times out.
+	uint8_t WDS: 1; //Watchdog Steering:
+					//				0 -> Watchdog Timer will generate WIRQ when it times out.
+					//				1 -> Watchdog Timer will generate a reset when it times out.
 };
 
 
@@ -263,10 +285,10 @@ enum ab08xx_alarm_repeat_mode_t
 	once_per_day,
 	once_per_hour,
 	once_per_minute,
-	once_per_second,
-	once_per_tenth,
-	once_per_hundreth,
-	invalid_mode
+	once_per_second,	//HA = [0-9][0-9]
+	once_per_tenth,     //HA = F[0-9]
+	once_per_hundreth,  //HA = FF
+	invalid_mode        //Where HA is ab08xx_alarm_t.hundredths_alarm
 };
 
 uint8_t bcd2bin(uint8_t value);
@@ -318,6 +340,17 @@ class AB08XX_I2C: public AB08XX
 
 public:
 	AB08XX_I2C();
+	virtual size_t _read(uint8_t offset, uint8_t* buf, uint16_t size);
+	virtual size_t _write(uint8_t offset, uint8_t* buf, uint16_t size);
+
+};
+
+class AB08XX_SPI: public AB08XX
+{
+private:
+	uint16_t cs_pin;
+public:
+	AB08XX_SPI(uint16_t cs_pin);
 	virtual size_t _read(uint8_t offset, uint8_t* buf, uint16_t size);
 	virtual size_t _write(uint8_t offset, uint8_t* buf, uint16_t size);
 
