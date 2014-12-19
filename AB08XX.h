@@ -22,7 +22,8 @@
 
 #include "stdint.h"
 #include "Time.h"
-#include "Wire.h"
+#include "stddef.h"
+
 
 /*
                  AB080X                                      AB081X
@@ -333,27 +334,11 @@ public:
 	void writeControl2(control2_t &data);
 	void readInturruprMask(inturrupt_mask_t &data);
 	void writeInturruprMask(inturrupt_mask_t &data);
-};
 
-class AB08XX_I2C: public AB08XX
-{
-
-public:
-	AB08XX_I2C();
-	virtual size_t _read(uint8_t offset, uint8_t* buf, uint16_t size);
-	virtual size_t _write(uint8_t offset, uint8_t* buf, uint16_t size);
+	size_t readRAM(uint8_t ram_offset, uint8_t* buf, uint8_t buf_offset, uint16_t size);
+	size_t writeRAM(uint8_t ram_offset, uint8_t* buf, uint8_t buf_offset, uint16_t size);
 
 };
 
-class AB08XX_SPI: public AB08XX
-{
-private:
-	uint16_t cs_pin;
-public:
-	AB08XX_SPI(uint16_t cs_pin);
-	virtual size_t _read(uint8_t offset, uint8_t* buf, uint16_t size);
-	virtual size_t _write(uint8_t offset, uint8_t* buf, uint16_t size);
-
-};
 
 #endif /* AB08XX_H_ */

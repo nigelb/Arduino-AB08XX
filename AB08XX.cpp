@@ -259,85 +259,16 @@ void AB08XX::writeInturruprMask(inturrupt_mask_t &data)
 	_write(OFFSETOF(AB08XX_memorymap, int_mask), (uint8_t*)&data, sizeof(inturrupt_mask_t));
 }
 
-
-AB08XX_I2C::AB08XX_I2C() : AB08XX()
+size_t AB08XX::readRAM(uint8_t ram_offset, uint8_t* buf, uint8_t buf_offset, uint16_t size)
 {
-	Wire.begin();
+	return _read(OFFSETOF(AB08XX_memorymap, ram) + ram_offset, buf + buf_offset, size);
 }
 
-size_t AB08XX_I2C::_read(uint8_t offset, uint8_t* buf, uint16_t size)
+size_t AB08XX::writeRAM(uint8_t ram_offset, uint8_t* buf, uint8_t buf_offset, uint16_t size)
 {
-
-	Wire.beginTransmission(AB08XX_ADDRESS);
-	Wire.write(offset);
-	Wire.endTransmission();
-
-	size_t total_read = 0;
-
-	for(uint8_t pos = 0, chunk_size; pos < size; pos += chunk_size)
-	{
-		chunk_size = size - pos;
-		if(chunk_size > (BUFFER_LENGTH - 1))
-		{
-			chunk_size = (BUFFER_LENGTH - 1);
-
-		}
-		if((offset + pos) < 0x40 && (pos + offset + chunk_size) > 0x40)
-		{
-			chunk_size = 0x40 - (offset + pos);
-		}
-		Wire.requestFrom((uint8_t)AB08XX_ADDRESS, chunk_size);
-		total_read = Wire.readBytes(buf + pos, chunk_size);
-	}
-
-	if(total_read != size)
-	{
-		setError(AB08XX_READ_ERROR);
-	}
-	return total_read;
+	return _write(OFFSETOF(AB08XX_memorymap, ram) + ram_offset, buf + buf_offset, size);
 }
 
-size_t AB08XX_I2C::_write(uint8_t offset, uint8_t* buf, uint16_t size)
-{
-	size_t total_written = 0;
-	for(uint8_t pos = 0, chunk_size; pos < size; pos += chunk_size)
-	{
-		chunk_size = size - pos;
-
-		//For some reason if I use BUFFER_LENGTH instead of (BUFFER_LENGTH - 1) the
-		//last byte is not written to the device.
-		if(chunk_size > (BUFFER_LENGTH - 1))
-		{
-			chunk_size = (BUFFER_LENGTH - 1);
-		}
-		Wire.beginTransmission(AB08XX_ADDRESS);
-		Wire.write(offset + pos);
-		total_written += Wire.write(buf + pos, chunk_size);
-		Wire.endTransmission();
-
-	}
-
-	if(total_written != size)
-	{
-		setError(AB08XX_WRITE_ERROR);
-	}
-	return total_written;
-}
-
-AB08XX_SPI::AB08XX_SPI(uint16_t cs_pin) : AB08XX()
-{
-	this->cs_pin = cs_pin;
-}
-
-size_t AB08XX_SPI::_read(uint8_t offset, uint8_t* buf, uint16_t size)
-{
-	return 0;
-}
-
-size_t AB08XX_SPI::_write(uint8_t offset, uint8_t* buf, uint16_t size)
-{
-	return 0;
-}
 
 
 

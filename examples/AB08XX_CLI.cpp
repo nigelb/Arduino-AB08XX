@@ -18,7 +18,7 @@
  */
 
 #include "Arduino.h"
-#include "AB08XX.h"
+#include "AB08XX_SPI.h"
 
 #define LEADING_ZERO(_Stream,_Base,_Value)   if(_Value < _Base){_Stream.print(0);}_Stream.print(_Value, _Base)
 #define LEADING_ZERO_ln(_Stream,_Base,_Value)   LEADING_ZERO(_Stream,_Base,_Value);_Stream.println()
@@ -170,7 +170,7 @@ static alarm_repeat_map_t alarm_repeat_map[] =
 		{invalid_mode, "invalid_mode"},
 };
 
-AB08XX_I2C clock;
+AB08XX_SPI clock(7);
 String *command;
 
 void prompt() {
