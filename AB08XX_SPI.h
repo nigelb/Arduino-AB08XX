@@ -2,7 +2,6 @@
  * AB08XX_SPI.h
  *
  *  Created on: Aug 25, 2014
- *      Author: eng-nbb
  */
 
 #ifndef AB08XX_SPI_H_
