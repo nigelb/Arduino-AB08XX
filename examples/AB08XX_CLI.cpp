@@ -18,177 +18,28 @@
  */
 
 #include "Arduino.h"
-#include "AB08XX_SPI.h"
+#include "AB08XX_CLI.h"
 
-#define LEADING_ZERO(_Stream,_Base,_Value)   if(_Value < _Base){_Stream.print(0);}_Stream.print(_Value, _Base)
-#define LEADING_ZERO_ln(_Stream,_Base,_Value)   LEADING_ZERO(_Stream,_Base,_Value);_Stream.println()
-#define PRINT_WIDTH(__stream, __size, __pad) for(int8_t j = 0; j < __size; j++){__stream.print(__pad);}
-
-char week_day[][4] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
-
-struct alarm_repeat_map_t
-{
-	ab08xx_alarm_repeat_mode_t mode;
-	char* name;
-
-};
-
-struct cmnd_t {
-	char* command;
-	int (*callback)(int argc, char** argv);
-	char* description;
-	int (*help)(int argc, char** argv);
-};
-
-struct register_map_t
-{
-	char* register_name;
-	uint8_t offset;
-};
-
-cmnd_t* find_cmnd(char* command, cmnd_t* command_vector);
-
-int set(int argc, char** argv);
-int get(int argc, char** argv);
-int alarm(int argc, char** argv);
-int set_help(int argc, char** argv);
-int watch(int argc, char** argv);
-int stop(int argc, char** argv);
-int start(int argc, char** argv);
-int status(int argc, char** argv);
-int int_mask(int argc, char** argv);
-int control1_mask(int argc, char** argv);
-int control2_mask(int argc, char** argv);
-int hex_get(int argc, char** argv);
-int hex_set(int argc, char** argv);
-int bin_get(int argc, char** argv);
-int map(int argc, char** argv);
-int _help(int argc, char** argv, cmnd_t* command_vecter);
-int help(int argc, char** argv);
-
-int alarm_set(int argc, char** argv);
-int alarm_get(int argc, char** argv);
-int alarm_enable(int argc, char** argv);
-int alarm_dissable(int argc, char** argv);
-int alarm_help(int argc, char** argv);
-int alarm_help_set(int argc, char** argv);
-
-void displayTime();
-void displayTime(ab08xx_tmElements_t &time);
-void print_time_element(ab08xx_tmElements_t &time);
-void print_alarm_element(ab08xx_tmElements_t &time);
-
-void print_alarm_mode();
-void print_days_of_week();
-alarm_repeat_map_t* get_alarm_mode(ab08xx_alarm_repeat_mode_t to_get);
-int get_alarm_mode_id(ab08xx_alarm_repeat_mode_t to_get);
-cmnd_t* get_cli(char* command);
-char* upper(char* value);
-
-static cmnd_t cli_vector[] = {
-		{ "set",      &set, "Set the clock.", &set_help },
-		{ "get",      &get, "Retrieve and display the time from the clock.", NULL },
-		{ "alarm",    &alarm, "Retrieve and display the alarm information from the clock.", &alarm_help },
-		{ "watch",    &watch, "Watch the time on the clock.", NULL },
-		//{ "usage",    &set_help, "Display the usage of the set command.", NULL },
-		{ "stop",     &stop, "Stop the oscillator.", NULL },
-		{ "start",    &start, "Start the oscillator.", NULL },
-		{ "status",   &status, "Display the status register.", NULL },
-		{ "int",      &int_mask, "Display the Interrupt Mask register.", NULL },
-		{ "control1", &control1_mask, "Display the control1 register.", NULL },
-		{ "control2", &control2_mask, "Display the control2 register.", NULL },
-		{ "binget",   &bin_get, "Display the contents of the clocks memory in Binary:\r\n\r\n\t\t\t\tbinget [offset[, count]]\r\n", NULL },
-		{ "hexget",   &hex_get, "Display the contents of the clocks memory in Hex:\r\n\r\n\t\t\t\thexget [offset[, count]]\r\n", NULL },
-		{ "hexset",   &hex_set, "Write data to the clock's memory in Hex (all values are read as hex):\r\n\r\n\t\t\t\thexset offset val1 [val2] [val3] [val4]\r\n", NULL },
-		{ "map",      &map,   "Display register map.", NULL },
-		{ "help",     &help,   "List available commands.", NULL },
-
-		{ NULL, NULL, NULL }
-};
-
-static cmnd_t alarm_vector[] = {
-		{ "set", &alarm_set, "Set the alarm.", &alarm_help_set },
-		{ "get", &alarm_get, "Retrieve and display the alarm from the clock.", NULL },
-		{ "enable", &alarm_enable, "Enable the alarm.", NULL },
-		{ "disable", &alarm_dissable, "Disable the alarm.", NULL },
-		{ "help", &alarm_help, "Display usage for the alarm command.", NULL },
-
-		{ NULL, NULL, NULL }
-};
-
-static register_map_t register_map[] = {
-		{"time", 				OFFSETOF(AB08XX_memorymap,time)},
-		{"alarm", 				OFFSETOF(AB08XX_memorymap,alarm)},
-		{"status", 				OFFSETOF(AB08XX_memorymap,status)},
-		{"control1", 			OFFSETOF(AB08XX_memorymap,control1)},
-		{"control2", 			OFFSETOF(AB08XX_memorymap,control2)},
-		{"int_mask", 			OFFSETOF(AB08XX_memorymap,int_mask)},
-		{"sqw", 				OFFSETOF(AB08XX_memorymap,sqw)},
-		{"cal_xt", 				OFFSETOF(AB08XX_memorymap,cal_xt)},
-		{"cal_rc_hi", 			OFFSETOF(AB08XX_memorymap,cal_rc_hi)},
-		{"cal_rc_low", 			OFFSETOF(AB08XX_memorymap,cal_rc_low)},
-		{"sleep_control",	 	OFFSETOF(AB08XX_memorymap,sleep_control)},
-		{"timer_control",	 	OFFSETOF(AB08XX_memorymap,timer_control)},
-		{"timer", 				OFFSETOF(AB08XX_memorymap,timer)},
-		{"timer_initial",	 	OFFSETOF(AB08XX_memorymap,timer_initial)},
-		{"wdt", 				OFFSETOF(AB08XX_memorymap,wdt)},
-		{"osc_control", 		OFFSETOF(AB08XX_memorymap,osc_control)},
-		{"osc_status", 			OFFSETOF(AB08XX_memorymap,osc_status)},
-		{"RESERVED", 			OFFSETOF(AB08XX_memorymap,RESERVED)},
-		{"configuration_key", 	OFFSETOF(AB08XX_memorymap,configuration_key)},
-		{"trickle", 			OFFSETOF(AB08XX_memorymap,trickle)},
-		{"bref_control", 		OFFSETOF(AB08XX_memorymap,bref_control)},
-		{"RESERVED2", 			OFFSETOF(AB08XX_memorymap,RESERVED2)},
-		{"id0", 				OFFSETOF(AB08XX_memorymap,id0)},
-		{"id1", 				OFFSETOF(AB08XX_memorymap,id1)},
-		{"id2", 				OFFSETOF(AB08XX_memorymap,id2)},
-		{"id3", 				OFFSETOF(AB08XX_memorymap,id3)},
-		{"id4", 				OFFSETOF(AB08XX_memorymap,id4)},
-		{"id5", 				OFFSETOF(AB08XX_memorymap,id5)},
-		{"id6", 				OFFSETOF(AB08XX_memorymap,id6)},
-		{"astat", 				OFFSETOF(AB08XX_memorymap,astat)},
-		{"octrl", 				OFFSETOF(AB08XX_memorymap,octrl)},
-		{"RESERVED3", 			OFFSETOF(AB08XX_memorymap,RESERVED3)},
-		{"extention_address", 	OFFSETOF(AB08XX_memorymap,extention_address)},
-		{"ram", 				OFFSETOF(AB08XX_memorymap,ram)},
-
-		{NULL, NULL}
-};
-
-static alarm_repeat_map_t alarm_repeat_map[] =
-{
-		{alarm_dissabled, "alarm_dissabled"},
-		{once_per_year, "once_per_year"},
-		{once_per_month, "once_per_month"},
-		{once_per_week, "once_per_week"},
-		{once_per_day, "once_per_day"},
-		{once_per_hour, "once_per_hour"},
-		{once_per_minute, "once_per_minute"},
-		{once_per_second, "once_per_second"},
-		{once_per_tenth, "once_per_tenth"},
-		{once_per_hundreth, "once_per_hundreth"},
-		{invalid_mode, "invalid_mode"},
-};
-
-AB08XX_SPI clock(7);
-String *command;
+AB08XX *abclock = NULL;
+String *command = new String();
 
 void prompt() {
 	Serial.println();
 	Serial.print("#> ");
 }
 
+#ifdef Arduino_h
 void setup() {
 	Serial.begin(115200);             // the Serial port of Arduino baud rate.
 	delay(200);
-
+	_abclock = new AB08XX_SPI(7);
 	Serial.println();
-	command = new String();
 	help(1, (char**) "");
 	Serial.println();
 	Serial.println("Enter \"help\" for list of available commands.");
 	prompt();
 }
+#endif
 
 void loop() {
 	if (Serial.available()) {
@@ -276,7 +127,7 @@ int set(int argc, char** argv) {
 	time.Second = atoi(argv[count++]);
 	time.Wday = atoi(argv[count++]) + 1;
 
-	clock.write(time);
+	abclock->write(time);
 
 	Serial.print("\tSuccessfully set the clock. ");
 	displayTime();
@@ -291,7 +142,7 @@ int get(int argc, char** argv) {
 
 int set_help(int argc, char** argv) {
 	ab08xx_tmElements_t time;
-	clock.read(time);
+	abclock->read(time);
 	Serial.println("Welcome to the AB08XX RTC Utility.");
 	Serial.println("");
 	Serial.println("Usage:");
@@ -354,7 +205,7 @@ int watch(int argc, char** argv) {
 	if(command != NULL)
 	{
 		while (Serial.available() == 0) {
-			clock.read(time);
+			abclock->read(time);
 			command->callback(_argc, _argv);
 			Serial.println();
 			delay(_delay);
@@ -374,23 +225,23 @@ int watch(int argc, char** argv) {
 
 int stop(int argc, char** argv) {
 	control1_t control;
-	clock.readControl1(control);
+	abclock->readControl1(control);
 	control.STOP = true;
-	clock.writeControl1(control);
+	abclock->writeControl1(control);
 	return 0;
 }
 
 int start(int argc, char** argv) {
 	control1_t control;
-	clock.readControl1(control);
+	abclock->readControl1(control);
 	control.STOP = false;
-	clock.writeControl1(control);
+	abclock->writeControl1(control);
 	return 0;
 }
 
 int status(int argc, char** argv) {
 	status_t status;
-	clock.readStatus(status);
+	abclock->readStatus(status);
 	Serial.print("\tRegister Address:                 \t0x");
 	LEADING_ZERO_ln(Serial, HEX, OFFSETOF(AB08XX_memorymap, status));
 	Serial.println();
@@ -415,7 +266,7 @@ int status(int argc, char** argv) {
 
 int int_mask(int argc, char** argv) {
 	inturrupt_mask_t mask;
-	clock.readInturruprMask(mask);
+	abclock->readInturruprMask(mask);
 	bool display_usage = false;
 
 	if (argc == 1) {
@@ -468,7 +319,7 @@ int int_mask(int argc, char** argv) {
 
 		}
 		Serial.println();
-		clock.writeInturruprMask(mask);
+		abclock->writeInturruprMask(mask);
 		int_mask(1, argv);
 	}
 
@@ -477,7 +328,7 @@ int int_mask(int argc, char** argv) {
 
 int control1_mask(int argc, char** argv) {
 	control1_t control1;
-	clock.readControl1(control1);
+	abclock->readControl1(control1);
 	if (argc == 1) {
 		Serial.print("\tRegister Address:                 \t0x");
 		LEADING_ZERO_ln(Serial, HEX, OFFSETOF(AB08XX_memorymap, control1));
@@ -532,7 +383,7 @@ int control1_mask(int argc, char** argv) {
 
 			}
 			Serial.println();
-			clock.writeControl1(control1);
+			abclock->writeControl1(control1);
 			control1_mask(1, argv);
 	}
 	return 0;
@@ -540,7 +391,7 @@ int control1_mask(int argc, char** argv) {
 
 int control2_mask(int argc, char** argv) {
 	control2_t control2;
-	clock.readControl2(control2);
+	abclock->readControl2(control2);
 	if (argc == 1) {
 		Serial.print("\tRegister Address:                 \t0x");
 		LEADING_ZERO_ln(Serial, HEX, OFFSETOF(AB08XX_memorymap, control2));
@@ -577,10 +428,73 @@ int control2_mask(int argc, char** argv) {
 				Serial.println();
 			}
 			Serial.println();
-			clock.writeControl2(control2);
+			abclock->writeControl2(control2);
 			control2_mask(1, argv);
 	}
 	return 0;
+}
+
+int clock_id(int argc, char** argv)
+{
+	AB08XX_memorymap map;
+	memset(&map, 0, sizeof map);
+	uint8_t offset = OFFSETOF(AB08XX_memorymap, id);
+	abclock->_read(offset, (uint8_t*)&map + offset, 7);
+	Serial.println("Abracon Clock Identification:");
+	Serial.println();
+	Serial.print("\tModel:\n\t\tAB");
+	Serial.print(bcd2bin(map.id.part_number_upper));
+	Serial.println(bcd2bin(map.id.part_number_lower));
+	Serial.print("\tRevision\n\t\tMajor: ");
+	Serial.print(map.id.revision.MAJOR);
+	Serial.print("\t\tMinor: ");
+	Serial.println(map.id.revision.MINOR);
+	Serial.println("\tManufacturing Information:");
+	/*Serial.print("\t\tYear: ");
+	Serial.println(map.id.date.YEAR);
+	Serial.print("\t\tWeek Lower: ");
+	Serial.println(map.id.date.WEEKL);
+	Serial.print("\t\tWafer: ");
+	Serial.println(map.id.info.WAFER);
+	Serial.print("\t\tWeek Upper: ");
+	Serial.println(map.id.info.WEEKU);
+	Serial.print("\t\tLot: ");
+	Serial.println(map.id.quad.LOT);
+	Serial.print("\t\tQuadrant: ");
+	Serial.println(map.id.quad.QUADRANT);
+	Serial.print("\t\tserialization: ");*/
+
+
+	Serial.print("\t\tYear: ");
+	Serial.println(map.id.info.YEAR);
+	Serial.print("\t\tWeek Lower: ");
+	Serial.println(map.id.info.WEEKL);
+	Serial.print("\t\tWafer: ");
+	Serial.println(map.id.info.WAFER);
+	Serial.print("\t\tWeek Upper: ");
+	Serial.println(map.id.info.WEEKU);
+	Serial.print("\t\tLot: ");
+	Serial.println(map.id.info.LOT);
+	Serial.print("\t\tQuadrant: ");
+	Serial.println(map.id.info.QUADRANT);
+	Serial.print("\t\tserialization: ");
+
+	Serial.println(map.id.serialization);
+	
+}
+
+int trickle(int argc, char** argv){
+	AB08XX_memorymap map;
+	memset(&map, 0, sizeof map);
+	uint8_t offset = OFFSETOF(AB08XX_memorymap, trickle);
+	abclock->_read(offset, (uint8_t*)&map + offset, 1);
+	Serial.print("Trickle charge configuration:\n");
+	Serial.print("\tResistor: ");
+	Serial.println(map.trickle.resistor);
+	Serial.print("\tDiode: ");
+	Serial.println(map.trickle.diode);
+	Serial.print("\tEnable: ");
+	Serial.println(map.trickle.enable);
 }
 
 int hex_get(int argc, char** argv) {
@@ -611,7 +525,7 @@ int hex_get(int argc, char** argv) {
 		buf[i] = 0;
 	}
 
-	clock._read(offset, (uint8_t*)&buf, size);
+	abclock->_read(offset, (uint8_t*)&buf, size);
 
 	for (uint16_t i = 0; i < size; i++) {
 		if (i % 8 == 0) {
@@ -643,7 +557,7 @@ int hex_set(int argc, char** argv)
 				Serial.print(buf[buf_pos], HEX);
 			}
 			Serial.println();
-			clock._write(address, (uint8_t*)buf, size);
+			abclock->_write(address, (uint8_t*)buf, size);
 	}else
 	{
 		Serial.print("Expected at least two parameters, got: ");
@@ -681,7 +595,7 @@ int bin_get(int argc, char** argv) {
 		buf[i] = 0;
 	}
 
-	clock._read(offset, (uint8_t*)&buf, size);
+	abclock->_read(offset, (uint8_t*)&buf, size);
 	for (uint16_t i = 0; i < size; i++) {
 
 		Serial.println();
@@ -793,9 +707,9 @@ int alarm_set(int argc, char** argv) {
 		{
 			mode = alarm_repeat_map[_mode].mode;
 		}
-		clock.writeAlarm(time, mode);
+		abclock->writeAlarm(time, mode);
 		Serial.println();
-		clock.readAlarm(time, mode);
+		abclock->readAlarm(time, mode);
 		Serial.print("\t");
 		alarm_get(argc, argv);
 	}else
@@ -810,7 +724,7 @@ int alarm_set(int argc, char** argv) {
 int alarm_get(int argc, char** argv) {
 	ab08xx_tmElements_t tm;
 	ab08xx_alarm_repeat_mode_t mode;
-	clock.readAlarm(tm, mode);
+	abclock->readAlarm(tm, mode);
 	Serial.print("\t");
 	print_alarm_element(tm);
 	Serial.print(" ");
@@ -834,7 +748,7 @@ int alarm_help(int argc, char** argv) {
 int alarm_help_set(int argc, char** argv) {
 	ab08xx_tmElements_t alarm;
 	ab08xx_alarm_repeat_mode_t mode;
-	clock.readAlarm(alarm, mode);
+	abclock->readAlarm(alarm, mode);
 	Serial.println("Alarm set usage: ");
 	Serial.println();
 	Serial.println("\talarm set <MONTH> <DAY> <HOUR24> <MINUTE> <SECOND> <HUNDRETHS_OF_SECONDS> <DAY_OF_WEEK> <REPEAT_MODE>");
@@ -875,7 +789,7 @@ int alarm_help_set(int argc, char** argv) {
 
 void displayTime() {
 	ab08xx_tmElements_t time;
-	clock.read(time);
+	abclock->read(time);
 	displayTime(time);
 }
 

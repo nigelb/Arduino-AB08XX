@@ -204,7 +204,7 @@ struct timer_control_t
 	uint8_t TE  : 1;
 };
 
-enum watchdog_timer_freq_select_t
+enum watchdog_timer_freq_select_t: uint8_t
 {
 	_16hz = 0,
 	_4hz = 1,
@@ -250,20 +250,64 @@ struct AB08XX_memorymap
 	uint8_t timer;
 	uint8_t timer_initial;
 	watchdog_timer_t wdt;
+	//uint8_t wdt;
 	uint8_t osc_control;
 	uint8_t osc_status;
 	uint8_t RESERVED;
 	uint8_t configuration_key;
-	uint8_t trickle;
+//	uint8_t trickle;
+	struct trickle_t
+	{
+		uint8_t resistor: 2;
+		uint8_t diode: 2;
+		uint8_t	enable: 4;
+	} trickle;
 	uint8_t bref_control;
 	uint8_t RESERVED2[6];
-	uint8_t id0;
-	uint8_t id1;
-	uint8_t id2;
-	uint8_t id3;
-	uint8_t id4;
-	uint8_t id5;
-	uint8_t id6;
+	struct id_t {
+		uint8_t part_number_upper;
+		uint8_t part_number_lower;
+		struct revision_t
+		{
+			uint8_t MINOR: 3;
+			uint8_t MAJOR: 5;
+		} revision;
+	/*	struct manufacturing_date_t
+		{
+			uint8_t WEEKL: 4;
+			uint8_t YEAR: 4;
+		} date;
+		struct manufacturing_info_t
+		{
+			uint8_t WEEKU: 2;
+			uint8_t WAFER: 6;
+		} info;
+		struct manufacturing_info2_t
+		{
+			uint8_t QUADRANT: 6;
+			uint8_t LOT: 2;
+		} quad; */
+	
+		struct manufacturing_info_t
+		{
+			uint8_t WEEKL: 4;
+			uint8_t YEAR: 4;
+			uint8_t WEEKU: 2;
+			uint8_t WAFER: 6;
+			uint8_t QUADRANT: 6;
+			uint8_t LOT: 2;
+		} info;
+		
+		uint8_t serialization;
+		
+	} id;
+//	uint8_t id0;
+//	uint8_t id1;
+//	uint8_t id2;
+//	uint8_t id3;
+//	uint8_t id4;
+//	uint8_t id5;
+//	uint8_t id6;
 	uint8_t astat;
 	uint8_t octrl;
 	uint8_t RESERVED3[14];
