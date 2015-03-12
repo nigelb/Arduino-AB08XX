@@ -181,7 +181,6 @@ int set_help(int argc, char** argv) {
 }
 
 int watch(int argc, char** argv) {
-	ab08xx_tmElements_t time;
 	uint16_t _delay = 1000;
 	char* command_name = "get";
 
@@ -205,7 +204,6 @@ int watch(int argc, char** argv) {
 	if(command != NULL)
 	{
 		while (Serial.available() == 0) {
-			abclock->read(time);
 			command->callback(_argc, _argv);
 			Serial.println();
 			delay(_delay);
