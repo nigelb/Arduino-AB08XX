@@ -1,6 +1,13 @@
 #ifndef __TIME_H__
 #define __TIME_H__
 
+//
+//Code extracted from Arduino Time library:
+//
+//	http://playground.arduino.cc/code/time
+//	http://playground.arduino.cc/uploads/Code/Time.zip
+//
+
 #include "stdint.h"
 #include "stddef.h"
 #include "stdlib.h"

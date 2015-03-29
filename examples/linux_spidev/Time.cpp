@@ -1,5 +1,12 @@
 #include "Time.h"
+#include <curses.h>
 
+//
+//Code extracted from Arduino Time library:
+//
+//      http://playground.arduino.cc/code/time
+//      http://playground.arduino.cc/uploads/Code/Time.zip
+//
 
 time_t makeTime(tmElements_t &tm){   
 // assemble time elements into time_t 
@@ -87,11 +94,18 @@ void breakTime(time_t timeInput, tmElements_t &tm){
 
 void delay(uint32_t useconds)
 {
-    timespec tim;
-    tim.tv_sec  = 0;
-    //tim.tv_nsec = 500000000L;
-    tim.tv_nsec = useconds * 1000L;
-    nanosleep(&tim, NULL);
-}
+	timespec tim, rem;
+	tim.tv_sec  = useconds / 1000;
+	tim.tv_nsec = (useconds * 1000000L) - (tim.tv_sec * 1000000000);
 
+	printw("%i\n", tim.tv_nsec); refresh();
+	int ret = nanosleep(&tim, &rem);
+ 
+	while(ret < 0)
+	{
+		tim.tv_sec = rem.tv_sec;
+		tim.tv_nsec = rem.tv_nsec;
+		ret = nanosleep(&tim, &rem);
+	}
+}
 

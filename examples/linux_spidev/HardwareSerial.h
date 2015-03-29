@@ -5,9 +5,8 @@
 #include "stdlib.h"
 #include <iostream>
 #include <bitset>
-//#include <time.h>
 #include <stdio.h>
-//#include <string.h>
+#include <curses.h>
 
 
 enum base_t
@@ -19,7 +18,14 @@ enum base_t
 
 class SerialImpl
 {
+private:
+	bool char_available;
+	char value;
+	WINDOW* win;
 public:
+    SerialImpl();
+    ~SerialImpl();
+    void begin();
     void print();
     void print(const char *);
     void print(char *);
@@ -34,5 +40,5 @@ public:
     void print(int value, base_t base);
 };
 
-static SerialImpl Serial;
+extern SerialImpl Serial;
 #endif

@@ -17,6 +17,7 @@
 #include <linux/spi/spidev.h>
 #include <string.h> /* memset */
 #include <unistd.h> /* close */
+#include <curses.h>
 
 
 #define SPI_READ(offset) (127 & offset)
@@ -71,11 +72,11 @@ AB08XX_SPI_Linux::AB08XX_SPI_Linux(const char* device, int mode, int bits, int s
                 pabort("can't get max speed hz");
 
 
-        printf("spi device: %s\n", device);
-        printf("spi mode: %d\n", mode);
-        printf("spi delay: %d\n", delay);
-        printf("bits per word: %d\n", bits);
-        printf("max speed: %d Hz (%d KHz)\n", speed, speed/1000);
+        printw("spi device: %s\n", device);
+        printw("spi mode: %d\n", mode);
+        printw("spi delay: %d\n", delay);
+        printw("bits per word: %d\n", bits);
+        printw("max speed: %d Hz (%d KHz)\n", speed, speed/1000);
 
 }
 
@@ -86,7 +87,7 @@ size_t AB08XX_SPI_Linux::_read(uint8_t offset, uint8_t* buf, uint16_t size)
 	memset(xfer, 0, sizeof xfer);
 //	memset(buf, 0, size);
 
-	printf("Offset %d\n", offset);
+	printw("Offset %d\n", offset);
 
 	buf[0] = SPI_READ(offset);
 
@@ -107,13 +108,14 @@ size_t AB08XX_SPI_Linux::_read(uint8_t offset, uint8_t* buf, uint16_t size)
                 perror("SPI_IOC_MESSAGE");
                 return -1;
         }
-	printf("\n %d \n", status);
-        for (int i = 0; i < size; i++)
-        {
-                printf(" %02x ", buf[i]);
-        }
+	//printw("\n %d \n", status);
+        //for (int i = 0; i < size; i++)
+        //{
+        //        printw(" %02x ", buf[i]);
+        //}
 
-	printf("\n");
+	//printw("\n");
+	//refresh();
 
 	return (size_t)status;
 }
@@ -125,8 +127,8 @@ size_t AB08XX_SPI_Linux::_write(uint8_t offset, uint8_t* buf, uint16_t size)
 	memset(xfer, 0, sizeof xfer);
 //	memset(buf, 0, size);
 
-	printf("Offset %d\n", offset);
-	printf("Size %d\n", size);
+	printw("Offset %d\n", offset);
+	printw("Size %d\n", size);
 
 
         xfer[0].tx_buf = (unsigned long)addr;
@@ -146,21 +148,21 @@ size_t AB08XX_SPI_Linux::_write(uint8_t offset, uint8_t* buf, uint16_t size)
                 perror("SPI_IOC_MESSAGE");
                 return -1;
         }
-	printf("\n %d \n", status);
-        for (int i = 0; i < size; i++)
-        {
-                printf(" %02x ", buf[i]);
-        }
+	//printw("\n %d \n", status);
+        //for (int i = 0; i < size; i++)
+        //{
+        //        printw(" %02x ", buf[i]);
+        //}
 
-	printf("\n");
+	//printw("\n");
+	//refresh();
 
 	return (size_t)status;
-	return -1;
 }
 
 AB08XX_SPI_Linux::~AB08XX_SPI_Linux()
 {
-	printf("Clossing...\n");
+	printw("Clossing...\n");
 	close(fd);
 }
 

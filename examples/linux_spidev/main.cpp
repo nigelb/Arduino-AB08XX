@@ -141,6 +141,7 @@ int main(int argc, char *argv[])
 
     parse_opts(argc, argv);
 
+    Serial.begin();
     AB08XX_SPI_Linux clock(device, mode, bits, speed, _delay);
 
     return cli_main(&clock);
