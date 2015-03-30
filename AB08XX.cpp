@@ -120,7 +120,7 @@ void AB08XX::readAlarm(ab08xx_tmElements_t &alarm, ab08xx_alarm_repeat_mode_t &m
 	{
 	default:
 	case 0:
-		mode = alarm_dissabled;
+		mode = alarm_disabled;
 		break;
 	case 1:
 		mode = once_per_year;

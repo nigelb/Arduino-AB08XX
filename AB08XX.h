@@ -221,6 +221,37 @@ struct watchdog_timer_t
 					//				1 -> Watchdog Timer will generate a reset when it times out.
 };
 
+enum trickle_charge_enable_t: uint8_t
+{
+	disable_trickle_charge = 0,
+	enable_trickle_charge = 10,
+};
+
+enum trickle_diode_t: uint8_t
+{
+	disabled_diode = 0, //Any value that is not a valid 
+	schottky_diode = 1, //0.3V drop
+	standard_diode = 2, //0.6V drop
+};
+
+enum trickle_resistor_t: uint8_t
+{
+	disable_resistor = 0,
+	_3k = 1,
+	_6K = 2,
+	_11K = 3,
+};
+
+enum configuration_key_t: uint8_t
+{
+	enable_oscillator_control_register = 0xA1,
+	conduct_software_reset = 0x3C,
+	enable_trickle_register = 0x9D,
+	enable_bref_register = 0x21,
+	enable_afctrl_register = 0x26,
+	enable_batmode_io_registe = 0x27,
+	enable_output_control_register = 0x30,
+};
 
 //struct idenstification_t
 //{
@@ -323,7 +354,7 @@ struct ab08xx_tmElements_t: tmElements_t
 //From the Alarm repeat function table (20)
 enum ab08xx_alarm_repeat_mode_t
 {
-	alarm_dissabled = 0,
+	alarm_disabled = 0,
 	once_per_year,
 	once_per_month,
 	once_per_week,

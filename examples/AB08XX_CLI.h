@@ -21,6 +21,24 @@ struct alarm_repeat_map_t
 
 };
 
+struct trickle_diode_map_t
+{
+	trickle_diode_t diode;
+	const char* name;	
+};
+
+struct trickle_resistor_map_t
+{
+	trickle_resistor_t resistor;
+	const char* name;
+};
+
+struct trickle_charge_enable_map_t
+{
+	trickle_charge_enable_t enable;
+	const char* name;
+};
+
 struct cmnd_t {
     const char* command;
     int (*callback)(int argc, char** argv);
@@ -40,6 +58,7 @@ void prompt();
 
 
 cmnd_t* find_cmnd(char* command, cmnd_t* command_vector);
+int run_subcomand(int argc, char** argv, int (*default_subcommand)(int argc, char** argv), int (*help_subcommand)(int argc, char** argv), cmnd_t* subcommand_vecter);
 
 int set(int argc, char** argv);
 int get(int argc, char** argv);
@@ -53,7 +72,6 @@ int int_mask(int argc, char** argv);
 int control1_mask(int argc, char** argv);
 int control2_mask(int argc, char** argv);
 int clock_id(int argc, char** argv);
-int trickle(int argc, char** argv);
 int hex_get(int argc, char** argv);
 int hex_set(int argc, char** argv);
 int bin_get(int argc, char** argv);
@@ -62,10 +80,16 @@ int _help(int argc, char** argv, cmnd_t* command_vecter);
 int help(int argc, char** argv);
 int exit(int argc, char** argv);
 
+int trickle(int argc, char** argv);
+int trickle_set(int argc, char** argv);
+int trickle_set_help(int argc, char** argv);
+int trickle_get(int argc, char** argv);
+int trickle_help(int argc, char** argv);
+
 int alarm_set(int argc, char** argv);
 int alarm_get(int argc, char** argv);
 int alarm_enable(int argc, char** argv);
-int alarm_dissable(int argc, char** argv);
+int alarm_disable(int argc, char** argv);
 int alarm_help(int argc, char** argv);
 int alarm_help_set(int argc, char** argv);
 
@@ -90,7 +114,7 @@ static cmnd_t cli_vector[] = {
         { "stop",     &stop, "Stop the oscillator.", NULL },
         { "start",    &start, "Start the oscillator.", NULL },
         { "status",   &status, "Display the status register.", NULL },
-        { "int",      &int_mask, "Display the Interrupt Mask register.", NULL },
+        { "int",      &int_mask, "Display and set the Interrupt Mask register.\r\n\r\n\t\t\t\tSetting the inturrupt register:\r\n\r\n\t\t\t\t\tint <INTURRUPT> <VALUE>\r\n", NULL },
         { "control1", &control1_mask, "Display the control1 register.", NULL },
         { "control2", &control2_mask, "Display the control2 register.", NULL },
         { "id",       &clock_id, "Display the ID registers.", NULL },
@@ -112,10 +136,18 @@ static cmnd_t alarm_vector[] = {
         { "set", &alarm_set, "Set the alarm.", &alarm_help_set },
         { "get", &alarm_get, "Retrieve and display the alarm from the clock.", NULL },
         { "enable", &alarm_enable, "Enable the alarm.", NULL },
-        { "disable", &alarm_dissable, "Disable the alarm.", NULL },
+        { "disable", &alarm_disable, "Disable the alarm.", NULL },
         { "help", &alarm_help, "Display usage for the alarm command.", NULL },
 
         { NULL, NULL, NULL }
+};
+
+static cmnd_t trickle_vector[] = {
+	{"set", &trickle_set, "Set the trickle register.", &trickle_set_help},
+	{"get", &trickle_get, "Get the trickle register.", NULL},
+	{"help", &trickle_help, "Display usage for trickle command.", NULL},
+
+        { NULL, NULL, NULL, NULL }
 };
 
 static register_map_t register_map[] = {
@@ -159,19 +191,41 @@ static register_map_t register_map[] = {
 };
 
 static alarm_repeat_map_t alarm_repeat_map[] =
-        {
-                {alarm_dissabled, "alarm_dissabled"},
-                {once_per_year, "once_per_year"},
-                {once_per_month, "once_per_month"},
-                {once_per_week, "once_per_week"},
-                {once_per_day, "once_per_day"},
-                {once_per_hour, "once_per_hour"},
-                {once_per_minute, "once_per_minute"},
-                {once_per_second, "once_per_second"},
-                {once_per_tenth, "once_per_tenth"},
-                {once_per_hundreth, "once_per_hundreth"},
-                {invalid_mode, "invalid_mode"},
-        };
+{
+	{alarm_disabled, "alarm_disabled"},
+       	{once_per_year, "once_per_year"},
+       	{once_per_month, "once_per_month"},
+       	{once_per_week, "once_per_week"},
+       	{once_per_day, "once_per_day"},
+       	{once_per_hour, "once_per_hour"},
+       	{once_per_minute, "once_per_minute"},
+       	{once_per_second, "once_per_second"},
+       	{once_per_tenth, "once_per_tenth"},
+       	{once_per_hundreth, "once_per_hundreth"},
+       	{invalid_mode, "invalid_mode"},
+};
+
+static trickle_diode_map_t trickle_diode_map[] =
+{
+	{disabled_diode, "disabled_diode"},
+        {schottky_diode, "schottky_diode"},
+        {standard_diode, "standard_diode"},
+};
+
+static trickle_resistor_map_t trickle_resistor_map[] =
+{
+	{disable_resistor, "disable_resistor"},
+	{_3k, "3K ohm resistor"},
+	{_6K, "6K ohm resistor"},
+	{_11K, "11K ohm resistor"},
+};
+
+static trickle_charge_enable_map_t trickle_charge_enable_map[] =
+{
+	{disable_trickle_charge, "disable_trickle_charge"},
+	{enable_trickle_charge, "enable_trickle_charge"},
+};
+
 
 extern AB08XX *abclock;
 extern String *command;

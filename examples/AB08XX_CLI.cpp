@@ -482,17 +482,115 @@ int clock_id(int argc, char** argv)
 }
 
 int trickle(int argc, char** argv){
+	return run_subcomand(argc, argv, &trickle_get, NULL, (cmnd_t*) &trickle_vector);
+}
+
+int trickle_get(int argc, char** argv){
 	AB08XX_memorymap map;
 	memset(&map, 0, sizeof map);
 	uint8_t offset = OFFSETOF(AB08XX_memorymap, trickle);
 	abclock->_read(offset, (uint8_t*)&map + offset, 1);
 	Serial.print("Trickle charge configuration:\n");
-	Serial.print("\tResistor: ");
-	Serial.println(map.trickle.resistor);
-	Serial.print("\tDiode: ");
-	Serial.println(map.trickle.diode);
+	Serial.println();
 	Serial.print("\tEnable: ");
 	Serial.println(map.trickle.enable);
+	Serial.print("\tDiode: ");
+	Serial.println(map.trickle.diode);
+	Serial.print("\tResistor: ");
+	Serial.println(map.trickle.resistor);
+	return 0;
+}
+int trickle_set_help(int argc, char** argv)
+{
+	Serial.println();
+	Serial.println("trickle set <ENABLE> <DIODE> <RESISTOR>");
+	Serial.println();
+	Serial.println("Where: ");
+	Serial.println();
+	Serial.println("Enable values: ");
+	Serial.println();
+	for(int i = 0; (i * sizeof(trickle_charge_enable_map_t)) < sizeof(trickle_charge_enable_map); i++)
+	{
+		Serial.print("\t");
+		Serial.print(trickle_charge_enable_map[i].name);
+		Serial.print(": ");
+		Serial.println(trickle_charge_enable_map[i].enable);
+	}
+	Serial.println();
+	Serial.println();
+	Serial.println("Diode values: ");
+	Serial.println();
+	for(int i = 0; (i * sizeof(trickle_diode_map_t)) < sizeof(trickle_diode_map); i++)
+	{
+		Serial.print("\t");
+		Serial.print(trickle_diode_map[i].name);
+		Serial.print(": ");
+		Serial.println(trickle_diode_map[i].diode);
+	}
+	Serial.println();
+	Serial.println();
+	Serial.println("Resistor values: "); 
+	Serial.println();
+	for(int i = 0; (i * sizeof(trickle_resistor_map_t)) < sizeof(trickle_resistor_map); i++)
+	{
+		Serial.print("\t");
+		Serial.print(trickle_resistor_map[i].name);
+		Serial.print(": ");
+		Serial.println(trickle_resistor_map[i].resistor);
+	}
+	return 0;
+}
+
+int trickle_set(int argc, char** argv){
+	AB08XX_memorymap map;
+	memset(&map, 0, sizeof map);
+	if(argc != 5)
+	{
+		trickle_set_help(argc, argv);
+		return 1;
+	}
+	bool valid = true;
+	int count = 2;
+	map.trickle.enable = atoi(argv[count++]);
+	map.trickle.diode = atoi(argv[count++]);
+	map.trickle.resistor = atoi(argv[count++]);
+
+	if(map.trickle.enable != enable_trickle_charge)
+	{
+		if(map.trickle.enable != disable_trickle_charge)
+		{
+			Serial.println("\t\tInvalid enable value, disabling trickle charging.");
+			valid = false;
+		}
+		map.trickle.enable = disable_trickle_charge;
+	}
+
+	
+
+	Serial.println("Writing Trickle Charge Setting:");
+	Serial.println();
+	Serial.print("\tEnable: ");
+	Serial.println(map.trickle.enable);
+	Serial.print("\tDiode: ");
+	Serial.println(map.trickle.diode);
+	Serial.print("\tResistor: ");
+	Serial.println(map.trickle.resistor);
+
+			
+	
+	uint8_t offset = OFFSETOF(AB08XX_memorymap, configuration_key);
+	if (valid)
+	{
+		map.configuration_key = enable_trickle_register;
+		abclock->_write(offset, (uint8_t*)&map + offset, sizeof(map.configuration_key));
+	}
+	offset = OFFSETOF(AB08XX_memorymap, trickle);
+	abclock->_write(offset, (uint8_t*)&map + offset, sizeof(map.trickle));
+}
+
+int trickle_help(int argc, char** argv){
+	_help(argc - 1, argv + 1, (cmnd_t*) &trickle_vector);
+	return 0;
 }
 
 int hex_get(int argc, char** argv) {
@@ -663,8 +761,33 @@ int help(int argc, char** argv) {
 	return _help(argc, argv, (cmnd_t*) &cli_vector);
 }
 
-int alarm(int argc, char** argv) {
+int run_subcomand(int argc, char** argv, int (*default_subcommand)(int argc, char** argv), int (*help_subcommand)(int argc, char** argv), cmnd_t* subcommand_vecter) {
 	cmnd_t* command;
+	char* command_name;
+	if (argc == 1) {
+		default_subcommand(argc, argv);
+		_help(argc, argv, subcommand_vecter);
+	} else {
+		command_name = argv[1];
+		command = find_cmnd(command_name, subcommand_vecter);
+		if (command != NULL) {
+			command->callback(argc, argv);
+		} else {
+			Serial.print("Command ");
+			Serial.print(command_name);
+			Serial.println(" Not found.");
+			Serial.println();
+			if(help_subcommand != NULL)
+			{
+				help_subcommand(argc, argv);
+			}
+		}
+	}
+	return 0;
+}
+
+int alarm(int argc, char** argv) {
+/*	cmnd_t* command;
 	char* command_name;
 	if (argc == 1) {
 		alarm_get(argc, argv);
@@ -682,7 +805,8 @@ int alarm(int argc, char** argv) {
 			alarm_help(argc, argv);
 		}
 	}
-	return 0;
+	return 0;*/
+	return run_subcomand(argc, argv, &alarm_get, &alarm_help, (cmnd_t*) &alarm_vector);
 }
 
 int alarm_set(int argc, char** argv) {
@@ -730,10 +854,12 @@ int alarm_get(int argc, char** argv) {
 
 	return 0;
 }
+
 int alarm_enable(int argc, char** argv) {
 	return 0;
 }
-int alarm_dissable(int argc, char** argv) {
+
+int alarm_disable(int argc, char** argv) {
 	return 0;
 }
 
