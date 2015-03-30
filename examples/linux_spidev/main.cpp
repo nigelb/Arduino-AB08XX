@@ -34,10 +34,12 @@ static uint8_t mode;
 static uint8_t bits = 8;
 static uint32_t speed = 500000;
 static uint16_t _delay;
+static bool set_timestamp = false;
+static bool use_localtime = false;
 
 static void print_usage(const char *prog)
 {
-	printf("Usage: %s [-DsbdlHOLC3]\n", prog);
+	printf("Usage: %s [-DstTbdlHOLC3]\n", prog);
 	puts("  -D --device   device to use (default /dev/spidev1.1)\n"
 	     "  -s --speed    max speed (Hz)\n"
 	     "  -d --delay    delay (usec)\n"
@@ -47,6 +49,8 @@ static void print_usage(const char *prog)
 	     "  -O --cpol     clock polarity\n"
 	     "  -L --lsb      least significant bit first\n"
 	     "  -C --cs-high  chip select active high\n"
+	     "  -t --write-utc set the spi clock from the system time (UTC)\n"
+	     "  -T --write-localtime set the spi clock from the system time (UTC + timezone)\n"
 	     "  -3 --3wire    SI/SO signals shared\n");
 	exit(1);
 }
@@ -66,12 +70,14 @@ static void parse_opts(int argc, char *argv[])
 			{ "cs-high", 0, 0, 'C' },
 			{ "3wire",   0, 0, '3' },
 			{ "no-cs",   0, 0, 'N' },
+			{ "write-utc",    0, 0, 't' },
+			{ "write-localtime",    0, 0, 'T' },
 			{ "ready",   0, 0, 'R' },
 			{ NULL, 0, 0, 0 },
 		};
 		int c;
 
-		c = getopt_long(argc, argv, "D:s:d:b:lHOLC3NR", lopts, NULL);
+		c = getopt_long(argc, argv, "D:s:d:b:lHOLC3NRtT", lopts, NULL);
 
 		if (c == -1)
 			break;
@@ -113,6 +119,11 @@ static void parse_opts(int argc, char *argv[])
 		case 'R':
 			mode |= SPI_READY;
 			break;
+		case 'T':
+			use_localtime = true;
+		case 't':
+			set_timestamp = true;
+			break;
 		default:
 			print_usage(argv[0]);
 			break;
@@ -143,6 +154,19 @@ int main(int argc, char *argv[])
 
     Serial.begin();
     AB08XX_SPI_Linux clock(device, mode, bits, speed, _delay);
+
+    if(set_timestamp)
+    {
+	ab08xx_tmElements_t tm;
+	time_t ts = time(NULL);
+	struct tm *lt = localtime(&ts);
+	if(use_localtime)
+	{
+		ts += lt->tm_gmtoff;
+	}
+	breakTime(ts, tm);	
+	clock.write(tm);	
+    }
 
     return cli_main(&clock);
 }
