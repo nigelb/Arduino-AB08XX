@@ -148,8 +148,6 @@ int cli_main(AB08XX *_clock)
 
 int main(int argc, char *argv[])
 {
-    timespec tim;
-
     parse_opts(argc, argv);
 
     Serial.begin();

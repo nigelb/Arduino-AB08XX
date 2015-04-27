@@ -69,6 +69,8 @@ int stop(int argc, char** argv);
 int start(int argc, char** argv);
 int status(int argc, char** argv);
 int int_mask(int argc, char** argv);
+int osc_control(int argc, char** argv);
+int osc_status(int argc, char** argv);
 int control1_mask(int argc, char** argv);
 int control2_mask(int argc, char** argv);
 int clock_id(int argc, char** argv);
@@ -81,6 +83,7 @@ int help(int argc, char** argv);
 int exit(int argc, char** argv);
 
 int trickle(int argc, char** argv);
+int batmode(int argc, char** argv);
 int trickle_set(int argc, char** argv);
 int trickle_set_help(int argc, char** argv);
 int trickle_get(int argc, char** argv);
@@ -114,11 +117,14 @@ static cmnd_t cli_vector[] = {
         { "stop",     &stop, "Stop the oscillator.", NULL },
         { "start",    &start, "Start the oscillator.", NULL },
         { "status",   &status, "Display the status register.", NULL },
-        { "int",      &int_mask, "Display and set the Interrupt Mask register.\r\n\r\n\t\t\t\tSetting the inturrupt register:\r\n\r\n\t\t\t\t\tint <INTURRUPT> <VALUE>\r\n", NULL },
         { "control1", &control1_mask, "Display the control1 register.", NULL },
         { "control2", &control2_mask, "Display the control2 register.", NULL },
-        { "id",       &clock_id, "Display the ID registers.", NULL },
+        { "int",      &int_mask, "Display and set the Interrupt Mask register.\r\n\r\n\t\t\t\tSetting the inturrupt register:\r\n\r\n\t\t\t\t\tint <INTURRUPT> <VALUE>\r\n", NULL },
+        { "osc_c",    &osc_control, "Display and set the osc_control register.", NULL },
+        { "osc_s",    &osc_status, "Display the osc_status register.", NULL },
         { "trickle",  &trickle, "Display the trickle register.", NULL },
+	{ "bat",      &batmode, "Display and set the Batmode IO Register.", NULL},
+        { "id",       &clock_id, "Display the ID registers.", NULL },
         { "binget",   &bin_get, "Display the contents of the clocks memory in Binary:\r\n\r\n\t\t\t\tbinget [offset[, count]]\r\n", NULL },
         { "hexget",   &hex_get, "Display the contents of the clocks memory in Hex:\r\n\r\n\t\t\t\thexget [offset[, count]]\r\n", NULL },
         { "hexset",   &hex_set, "Write data to the clock's memory in Hex (all values are read as hex):\r\n\r\n\t\t\t\thexset offset val1 [val2] [val3] [val4]\r\n", NULL },
@@ -151,28 +157,30 @@ static cmnd_t trickle_vector[] = {
 };
 
 static register_map_t register_map[] = {
-        {"time", 				OFFSETOF(AB08XX_memorymap,time)},
-        {"alarm", 				OFFSETOF(AB08XX_memorymap,alarm)},
-        {"status", 				OFFSETOF(AB08XX_memorymap,status)},
+        {"time", 			OFFSETOF(AB08XX_memorymap,time)},
+        {"alarm", 			OFFSETOF(AB08XX_memorymap,alarm)},
+        {"status", 			OFFSETOF(AB08XX_memorymap,status)},
         {"control1", 			OFFSETOF(AB08XX_memorymap,control1)},
         {"control2", 			OFFSETOF(AB08XX_memorymap,control2)},
         {"int_mask", 			OFFSETOF(AB08XX_memorymap,int_mask)},
-        {"sqw", 				OFFSETOF(AB08XX_memorymap,sqw)},
-        {"cal_xt", 				OFFSETOF(AB08XX_memorymap,cal_xt)},
+        {"sqw", 			OFFSETOF(AB08XX_memorymap,sqw)},
+        {"cal_xt", 			OFFSETOF(AB08XX_memorymap,cal_xt)},
         {"cal_rc_hi", 			OFFSETOF(AB08XX_memorymap,cal_rc_hi)},
         {"cal_rc_low", 			OFFSETOF(AB08XX_memorymap,cal_rc_low)},
         {"sleep_control",	 	OFFSETOF(AB08XX_memorymap,sleep_control)},
         {"timer_control",	 	OFFSETOF(AB08XX_memorymap,timer_control)},
-        {"timer", 				OFFSETOF(AB08XX_memorymap,timer)},
+        {"timer", 			OFFSETOF(AB08XX_memorymap,timer)},
         {"timer_initial",	 	OFFSETOF(AB08XX_memorymap,timer_initial)},
-        {"wdt", 				OFFSETOF(AB08XX_memorymap,wdt)},
+        {"wdt", 			OFFSETOF(AB08XX_memorymap,wdt)},
         {"osc_control", 		OFFSETOF(AB08XX_memorymap,osc_control)},
         {"osc_status", 			OFFSETOF(AB08XX_memorymap,osc_status)},
         {"RESERVED", 			OFFSETOF(AB08XX_memorymap,RESERVED)},
-        {"configuration_key", 	OFFSETOF(AB08XX_memorymap,configuration_key)},
+        {"configuration_key", 		OFFSETOF(AB08XX_memorymap,configuration_key)},
         {"trickle", 			OFFSETOF(AB08XX_memorymap,trickle)},
         {"bref_control", 		OFFSETOF(AB08XX_memorymap,bref_control)},
         {"RESERVED2", 			OFFSETOF(AB08XX_memorymap,RESERVED2)},
+        {"afctrl",	 		OFFSETOF(AB08XX_memorymap,afctrl)},
+        {"batmode_io", 			OFFSETOF(AB08XX_memorymap,batmode_io)},
         {"id", 				OFFSETOF(AB08XX_memorymap,id)},
 //        {"id0", 				OFFSETOF(AB08XX_memorymap,id0)},
 //        {"id1", 				OFFSETOF(AB08XX_memorymap,id1)},

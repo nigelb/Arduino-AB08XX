@@ -83,31 +83,47 @@ AB08XX_SPI_Linux::AB08XX_SPI_Linux(const char* device, int mode, int bits, int s
 size_t AB08XX_SPI_Linux::_read(uint8_t offset, uint8_t* buf, uint16_t size)
 {
 	struct spi_ioc_transfer xfer[2];
+	uint8_t rx_buf_size = 8, tx[1], rx[rx_buf_size], rx_size;
 
 	memset(xfer, 0, sizeof xfer);
-//	memset(buf, 0, size);
+	memset(buf, 0, size);
 
-	printw("Offset %d\n", offset);
 
-	buf[0] = SPI_READ(offset);
+	for(int i = 0; i < size; i+=8)
+	{
 
-        xfer[0].tx_buf = (unsigned long)buf;
+		tx[0] = SPI_READ((offset + i));
+	//	printw("Offset %d\n", tx[0]);
+
+        	xfer[0].tx_buf = (unsigned long)tx;
 //        xfer[0].rx_buf = (unsigned long)buf;
-        xfer[0].len = 1;
-        xfer[0].cs_change = 1;
+	        xfer[0].len = 1;
+        	//xfer[0].cs_change = 1;
+	        xfer[0].cs_change = 0;
 //        xfer[0].delay_usecs     = delay;
 //        xfer[0].speed_hz        = speed;
 //        xfer[0].bits_per_word   = bits;
 
-        xfer[1].rx_buf = (unsigned long)buf;
-        xfer[1].len = size;
-        xfer[0].cs_change = 0;
+		rx_size = size - i;
+		if(rx_size > rx_buf_size)
+		{
+			rx_size = rx_buf_size;
+		}
+	        xfer[1].rx_buf = (unsigned long) rx;
+        	xfer[1].len = rx_buf_size;
 
-        int status = ioctl(fd, SPI_IOC_MESSAGE(2), xfer);
-        if (status < 0) {
-                perror("SPI_IOC_MESSAGE");
-                return -1;
-        }
+
+	        int status = ioctl(fd, SPI_IOC_MESSAGE(2), xfer);
+	//	printw("status:  %d\n", status);
+		for(int j = 0; j < rx_size; j++)
+		{
+			buf[i + j] = rx[j];
+		}
+        	if (status < 0) {
+                	perror("SPI_IOC_MESSAGE");
+	                return -1;
+        	}
+	}
 	//printw("\n %d \n", status);
         //for (int i = 0; i < size; i++)
         //{
@@ -117,7 +133,8 @@ size_t AB08XX_SPI_Linux::_read(uint8_t offset, uint8_t* buf, uint16_t size)
 	//printw("\n");
 	//refresh();
 
-	return (size_t)status;
+	//return (size_t)status;
+	return (size_t)1;
 }
 
 size_t AB08XX_SPI_Linux::_write(uint8_t offset, uint8_t* buf, uint16_t size)

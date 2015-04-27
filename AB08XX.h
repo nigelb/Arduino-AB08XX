@@ -247,10 +247,10 @@ enum configuration_key_t: uint8_t
 	enable_oscillator_control_register = 0xA1,
 	conduct_software_reset = 0x3C,
 	enable_trickle_register = 0x9D,
-	enable_bref_register = 0x21,
-	enable_afctrl_register = 0x26,
-	enable_batmode_io_registe = 0x27,
-	enable_output_control_register = 0x30,
+	enable_bref_register = 0x9D,
+	enable_afctrl_register = 0x9D,
+	enable_batmode_io_register = 0x9D,
+	enable_output_control_register = 0x9D,
 };
 
 //struct idenstification_t
@@ -282,19 +282,45 @@ struct AB08XX_memorymap
 	uint8_t timer_initial;
 	watchdog_timer_t wdt;
 	//uint8_t wdt;
-	uint8_t osc_control;
-	uint8_t osc_status;
+	//uint8_t osc_control;
+	struct osc_control_t
+	{
+		uint8_t ACIE: 1;
+		uint8_t OFIE: 1;
+		uint8_t PWGT: 1;
+		uint8_t	FOS:  1;
+		uint8_t AOS:  1;
+		uint8_t ACAL: 2;
+		uint8_t OSEL: 1;
+	} osc_control;
+	//uint8_t osc_status;
+	struct osc_status_t
+	{
+		uint8_t ACF:      1;
+		uint8_t OF:       1;
+		uint8_t RESERVED: 2;
+		uint8_t OMODE:    1;
+		uint8_t LKO2:     1;
+		uint8_t XTCAL:    1;
+	} osc_status;
 	uint8_t RESERVED;
 	uint8_t configuration_key;
 //	uint8_t trickle;
 	struct trickle_t
 	{
 		uint8_t resistor: 2;
-		uint8_t diode: 2;
-		uint8_t	enable: 4;
+		uint8_t diode:    2;
+		uint8_t	enable:   4;
 	} trickle;
 	uint8_t bref_control;
-	uint8_t RESERVED2[6];
+	uint8_t RESERVED2[4];
+
+	uint8_t	afctrl;
+	struct batmode_io_t
+	{
+		uint8_t RESERVED: 7;
+		bool IOBM:     1;
+	} batmode_io;
 	struct id_t {
 		uint8_t part_number_upper;
 		uint8_t part_number_lower;

@@ -432,6 +432,24 @@ int control2_mask(int argc, char** argv) {
 	return 0;
 }
 
+int osc_control(int argc, char** argv)
+{
+	if (argc == 1) {
+		Serial.print("\tRegister Address:                 \t0x");
+		LEADING_ZERO_ln(Serial, HEX, OFFSETOF(AB08XX_memorymap, control2));
+	}
+
+	return 0;
+
+}
+
+int osc_status(int argc, char** argv)
+{
+	
+
+	return 0;
+}
+
 int clock_id(int argc, char** argv)
 {
 	AB08XX_memorymap map;
@@ -500,6 +518,7 @@ int trickle_get(int argc, char** argv){
 	Serial.println(map.trickle.resistor);
 	return 0;
 }
+
 int trickle_set_help(int argc, char** argv)
 {
 	Serial.println();
@@ -586,11 +605,57 @@ int trickle_set(int argc, char** argv){
 	}
 	offset = OFFSETOF(AB08XX_memorymap, trickle);
 	abclock->_write(offset, (uint8_t*)&map + offset, sizeof(map.trickle));
+	return 0;
 }
 
 int trickle_help(int argc, char** argv){
 	_help(argc - 1, argv + 1, (cmnd_t*) &trickle_vector);
 	return 0;
+}
+
+int batmode(int argc, char** argv)
+{
+	AB08XX_memorymap map;
+	memset(&map, 0, sizeof map);
+
+	uint8_t offset = OFFSETOF(AB08XX_memorymap, batmode_io);
+	abclock->_read(offset, (uint8_t*)&map + offset, 1);
+
+	if(argc == 1)
+	{
+		Serial.println();
+		Serial.print("\tRegister Address:                 \t0x");
+		LEADING_ZERO_ln(Serial, HEX, offset);
+		Serial.println();
+//		Serial.println();
+//		Serial.println("Bat Mode I/O: ");
+		Serial.println();
+		Serial.print("\tIOBM: ");
+		Serial.println(map.batmode_io.IOBM);
+	}
+	else if(argc == 3)
+	{
+		if (strcmp(argv[1], "IOBM") == 0)
+		{
+			map.batmode_io.IOBM = atoi(argv[2]);
+			Serial.print("Found: ");
+			Serial.println(map.batmode_io.IOBM);
+			uint8_t key_offset = OFFSETOF(AB08XX_memorymap, configuration_key);
+			map.configuration_key = enable_batmode_io_register;
+			abclock->_write(key_offset, (uint8_t*)&map + key_offset, sizeof(map.configuration_key));
+			abclock->_write(offset, (uint8_t*)&map + offset, 1);
+		}else
+		{
+			Serial.print(argv[1]);
+			Serial.println(": UNKNOWN");
+		}
+	}
+	else
+	{
+		Serial.println("Unknown command.");
+	}
+	Serial.println();
+	
 }
 
 int hex_get(int argc, char** argv) {
