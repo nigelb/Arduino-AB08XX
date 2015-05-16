@@ -285,7 +285,7 @@ struct AB08XX_memorymap
 	//uint8_t osc_control;
 	struct osc_control_t
 	{
-		uint8_t ACIE: 1;
+		uint8_t _ACIE: 1;
 		uint8_t OFIE: 1;
 		uint8_t PWGT: 1;
 		uint8_t	FOS:  1;
